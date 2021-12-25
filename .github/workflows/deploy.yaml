@@ -1,0 +1,56 @@
+name: TerraformDeploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  terraform:
+    name: TerraformDeploy
+    runs-on: ubuntu-latest
+    env:
+      OKTA_API_TOKEN: ${{ secrets.OKTA_API_TOKEN }}
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+    - name: Checkout # GitHub のリポジトリを WorkingDirectory に Pull
+      uses: actions/checkout@v2
+
+    - name: Configure AWS credentials # AWSCLI をインストール及び Credential の設定
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ap-northeast-1
+
+    - name: Setup Terraform # Terraform をインストール
+      uses: hashicorp/setup-terraform@v1
+      with:
+        terraform_version: 1.0.0
+
+    - name: Init Terraform
+      run: terraform init
+
+    - name: Test Terraform
+      run: |
+        terraform fmt -recursive -check
+        terraform validate
+        terraform plan
+
+    - name: Deploy Terraform
+      id: terraform_deploy
+      run: terraform apply -auto-approve # -auto-approve オプションの付与で、ユーザーに確認せずに適用を実施する
+
+# 以下は Workflow の成否をチャットなどに通知を行うときの処理です。もし必要あったら使ってください。
+    # - name: Notify Success Message
+    #   id: notify_success_message
+    #   if: success() && steps.terraform_deploy.outcome == 'success'
+    #   run: # デプロイ成功時の通知処理
+
+    # - name: Notify Failure Message
+    #   if: failure() && steps.notify_success_message.outcome != 'failure'
+    #   run: # デプロイ失敗時の通知処理
